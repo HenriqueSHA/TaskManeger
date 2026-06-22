@@ -21,7 +21,7 @@ Aplicação interativa em linha de comando (CLI) desenvolvida em Rust para geren
 ---
 
 ## 📖 Sobre o Projeto
-O TaskManager é uma ferramenta utilitária desenvolvida em Rust com o propósito de aprofundar os estudos em conceitos fundamentais da linguagem, como ownership, mutabilidade, gerenciamento de vetores dinâmicos (`Vec`), enums associados e leitura segura de dados via `std::io`. A aplicação opera em um loop interativo no terminal onde o usuário insere comandos numéricos para manipular tarefas em tempo de execução. O fluxo é simples: cada tarefa possui um identificador único auto-incrementado, uma descrição curta e um status que transita entre Pendente, Em Andamento e Concluído.
+O TaskManeger é uma ferramenta utilitária desenvolvida em Rust com o propósito de aprofundar os estudos em conceitos fundamentais da linguagem, como ownership, mutabilidade, gerenciamento de vetores dinâmicos (`Vec`), enums associados e leitura segura de dados via `std::io`. A aplicação opera em um loop interativo no terminal onde o usuário insere comandos numéricos para manipular tarefas em tempo de execução. O fluxo é simples: cada tarefa possui um identificador único auto-incrementado, uma descrição curta e um status que transita entre Pendente, Em Andamento e Concluído.
 
 ## ✨ Principais Funcionalidades
 * **Adição Dinâmica de Tarefas:** Cria novos afazeres com geração automática de identificador único (ID) sequencial.
