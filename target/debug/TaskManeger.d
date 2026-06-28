@@ -1,1 +1,0 @@
-/home/rick/Documentos/Code/OnlyRustFundaments/TaskManeger/target/debug/TaskManeger: /home/rick/Documentos/Code/OnlyRustFundaments/TaskManeger/src/main.rs /home/rick/Documentos/Code/OnlyRustFundaments/TaskManeger/src/task.rs
