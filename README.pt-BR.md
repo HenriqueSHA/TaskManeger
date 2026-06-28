@@ -6,75 +6,117 @@
 
 ---
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/HenriqueSHA/TaskManeger)
+[![Rust CI](https://github.com/HenriqueSHA/TaskManeger/actions/workflows/rust-ci.yml/badge.svg)](https://github.com/HenriqueSHA/TaskManeger/actions/workflows/rust-ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/HenriqueSHA/TaskManeger/blob/main/LICENSE)
 
-Aplicação interativa em linha de comando (CLI) desenvolvida em Rust para gerenciamento de tarefas pessoais, facilitando a criação, listagem, atualização de status e remoção de afazeres de forma ágil no terminal.
+Aplicação interativa e moderna em linha de comando (CLI) desenvolvida em Rust para gerenciamento de tarefas pessoais (To-Do). Conta com persistência de dados em arquivo JSON, arquitetura limpa utilizando o padrão Repository, menus interativos avançados, pipeline de CI/CD automatizado e suporte para execução em Docker.
 
 ## Sumário
 - [Sobre o Projeto](#sobre-o-projeto)
 - [Principais Funcionalidades](#principais-funcionalidades)
 - [Arquitetura e Tecnologias](#arquitetura-e-tecnologias)
+- [Estrutura do Código](#estrutura-do-código)
 - [Instalação e Uso](#instalação-e-uso)
+- [CI/CD & Docker](#cicd--docker)
 - [Autor e Licença](#autor-e-licença)
 
 ---
 
 ## Sobre o Projeto
-O TaskManeger é uma ferramenta utilitária desenvolvida em Rust com o propósito de aprofundar os estudos em conceitos fundamentais da linguagem, como ownership, mutabilidade, gerenciamento de vetores dinâmicos (`Vec`), enums associados e leitura segura de dados via `std::io`. 
-
-A aplicação opera em um loop interativo no terminal onde o usuário insere comandos numéricos para manipular tarefas em tempo de execução. O fluxo é simples: cada tarefa possui um identificador único auto-incrementado, uma descrição curta e um status que transita entre Pendente, Em Andamento e Concluído.
+O **TaskManager** foi projetado seguindo as melhores práticas de desenvolvimento em Rust, focado em alta coesão, baixo acoplamento e tratamento seguro de erros. Ele evoluiu de um simples CLI básico em memória para uma ferramenta profissional com persistência duradoura, servindo de portfólio robusto sobre o uso de traits, gerenciamento de ciclo de vida (timestamps com `chrono`), serialização de dados (`serde`), e testes de integração automatizados.
 
 ## Principais Funcionalidades
-* **Adição Dinâmica de Tarefas:** Cria novos afazeres com geração automática de identificador único (ID) sequencial.
-* **Listagem do Board de Tarefas:** Exibe todos os registros salvos em memória com seus respectivos IDs, descrições e status legíveis.
-* **Atualização de Status Interativa:** Permite modificar o estado de uma tarefa específica (Pendente, Em Andamento, Concluído) localizando-a pelo seu ID.
-* **Remoção de Tarefas:** Exclui tarefas do gerenciador a partir de seu ID correspondente com validação de existência.
+* **Interface Interativa Premium:** Substituição do fluxo de leitura manual por menus de seleção ricos com setas direcionais via crate `inquire`.
+* **Persistência de Dados:** Salva e carrega tarefas automaticamente do arquivo local `tasks.json`.
+* **Status com Cores Dinâmicas:** Exibição elegante do progresso das tarefas no terminal (`Pendente`, `Em Andamento`, `Concluído`) com formatação ANSI via crate `colored`.
+* **Rastreabilidade Temporal:** Registro de carimbos de data/hora (`criada_em` e `atualizada_em`) em cada alteração de status.
+* **Remoção Segura:** Exclusão interativa com prompt de confirmação de segurança (Confirm).
+
+---
 
 ## Arquitetura e Tecnologias
 
-| Camada / Componente | Tecnologia | Descrição / Uso |
+A arquitetura do projeto segue o padrão **Clean Architecture**, dividida em camadas bem definidas:
+
+```mermaid
+graph TD
+    A[main.rs - Interface CLI / inquire] -->|Usa| B[lib.rs - Biblioteca Core]
+    B --> C[repository.rs - Padrão Repository / JSON Persistence]
+    B --> D[task.rs - Entidades & Regras de Domínio]
+    B --> E[error.rs - Tratamento Idiomático de Erros]
+```
+
+| Camada / Componente | Tecnologia / Crate | Descrição / Uso |
 | :--- | :--- | :--- |
-| **Core / Backend** | Rust | Compilado via `rustc` e gerenciado pelo Cargo |
-| **Interface (Frontend)** | CLI | Interface de linha de comando interativa no terminal |
-| **Armazenamento (Banco)** | Em memória | Armazenamento volátil utilizando Vector (`Vec<Struct>`) em Rust |
+| **Domain Models** | Rust (`task.rs`) | Estruturas de dados `Task` e `Status` com timestamps. |
+| **Repository Pattern** | Rust (`repository.rs`) | Abstração `TaskRepository` e implementação `JsonFileRepository` para persistência. |
+| **Error Handling** | `thiserror` (`error.rs`) | Erros customizados e tipados de forma idiomática em Rust. |
+| **Interface (Frontend)** | `inquire` & `colored` | Navegação por menus e interações coloridas no terminal. |
+| **Persistência** | `serde` & `serde_json` | Conversão de objetos Rust em arquivos JSON e vice-versa. |
+
+---
+
+## Estrutura do Código
+
+```text
+├── Cargo.toml
+├── Dockerfile
+├── tasks.json (Gerado automaticamente)
+├── .github
+│   └── workflows
+│       └── rust-ci.yml
+└── src
+    ├── error.rs      # Tratamento de erros customizados (TaskError)
+    ├── lib.rs        # Exposição da biblioteca e API pública
+    ├── main.rs       # Ponto de entrada do executável da aplicação
+    ├── repository.rs # Definição da trait Repository e escrita/leitura em arquivo JSON
+    └── task.rs       # Entidade de domínio Task e Status
+```
 
 ---
 
 ## Instalação e Uso
-Passo a passo para rodar localmente a aplicação no terminal.
 
 ### Pré-requisitos
-* Rust (ferramenta `rustup` e gerenciador de pacotes `cargo`) v1.70+
+* Rust (ferramenta `rustup` e gerenciador de pacotes `cargo`) v1.75+
 
-### Execução Local (Sem Docker)
-1. Clone o repositório e acesse a pasta do projeto:
+### Execução Local
+1. Clone o repositório:
    ```bash
    git clone git@github.com:HenriqueSHA/TaskManeger.git
    cd TaskManeger
    ```
-2. Compile e execute o projeto diretamente com o Cargo:
+2. Execute a aplicação diretamente pelo Cargo:
    ```bash
    cargo run
    ```
+3. Rode os testes unitários da aplicação:
+   ```bash
+   cargo test
+   ```
 
-### Exemplo de Uso
-Ao rodar a aplicação, o seguinte menu interativo será exibido no terminal:
-```text
---- Bem-vindo ao Task Manager ---
-1 - Adicionar uma nova tarefa
-2 - Listar todas as tarefas
-3 - Atualizar o status de uma tarefa pelo ID
-4 - Remover uma tarefa pelo ID
-5 - Sair
----------------------------------
-```
-Exemplo de entrada/saída ao adicionar uma tarefa (Opção 1):
-```text
-Digite a descrição da tarefa:
-Estudar Rust Ownership
-Tarefa adicionada com sucesso! ID: 1
-```
+---
+
+## CI/CD & Docker
+
+### Integração Contínua (GitHub Actions)
+O pipeline configurado em `.github/workflows/rust-ci.yml` executa as seguintes etapas a cada push/pull request:
+* Validação de formatação (`cargo fmt --check`)
+* Análise estática com linter do Rust (`cargo clippy`)
+* Execução de testes automatizados (`cargo test`)
+
+### Docker
+Você também pode empacotar e rodar a aplicação em um container Docker de múltiplos estágios (multi-stage build), o que minimiza o tamanho da imagem de produção:
+
+1. Construir a imagem Docker localmente:
+   ```bash
+   docker build -t taskmanager:latest .
+   ```
+2. Rodar a aplicação de forma interativa pelo Docker:
+   ```bash
+   docker run -it --rm -v $(pwd)/tasks.json:/app/tasks.json taskmanager:latest
+   ```
+   *(Nota: O parâmetro `-v` permite que o arquivo `tasks.json` persista os dados diretamente em sua máquina local)*
 
 ---
 
