@@ -1,0 +1,20 @@
+# Rust/Cargo
+/target/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+.vscode/settings.json
+
+# Operating System specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local database and test files
+/tasks.json
+/test_tasks_*.json
+
