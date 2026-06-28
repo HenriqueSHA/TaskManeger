@@ -1,130 +1,212 @@
-mod task;
+use colored::Colorize;
+use inquire::{error::InquireError, Confirm, Select, Text};
+use std::fmt;
+use task_maneger::{JsonFileRepository, Status, Task, TaskRepository};
 
-use std::io;
-use task::{Task, Status};
+struct TaskOption(Task);
+
+impl fmt::Display for TaskOption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let status_desc = match self.0.status {
+            Status::Pendente => "Pendente".red().bold(),
+            Status::EmAndamento => "Em Andamento".yellow().bold(),
+            Status::Concluido => "Concluído".green().bold(),
+        };
+        write!(
+            f,
+            "ID: {} | [{}] {}",
+            self.0.id, status_desc, self.0.descricao
+        )
+    }
+}
 
 fn main() {
-    let mut tarefas: Vec<Task> = Vec::new();
-    let mut contador_id = 1; // Controla os IDs das tarefas
+    println!("{}", "=== TASK MANAGER CLI ===".cyan().bold());
+
+    let mut repo = match JsonFileRepository::new("tasks.json") {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("{}: {}", "Erro ao iniciar repositório".red().bold(), e);
+            std::process::exit(1);
+        }
+    };
 
     loop {
-        println!("\n--- Bem-vindo ao Task Manager ---");
-        println!("1 - Adicionar uma nova tarefa");
-        println!("2 - Listar todas as tarefas");
-        println!("3 - Atualizar o status de uma tarefa pelo ID");
-        println!("4 - Remover uma tarefa pelo ID");
-        println!("5 - Sair");
-        println!("---------------------------------");
+        let options = vec![
+            "1. Adicionar uma nova tarefa",
+            "2. Listar todas as tarefas",
+            "3. Atualizar o status de uma tarefa",
+            "4. Remover uma tarefa",
+            "5. Sair",
+        ];
 
-        let mut opcao = String::new();
-        io::stdin().read_line(&mut opcao).expect("Erro ao ler entrada");
+        let ans = Select::new("Escolha uma opção:", options).prompt();
 
-        match opcao.trim() {
-            "1" => adicionar_tarefa(&mut tarefas, &mut contador_id),
-            "2" => listar_tarefas(&tarefas),
-            "3" => atualizar_tarefa(&mut tarefas),
-            "4" => remover_tarefa(&mut tarefas),
-            "5" => {
-                println!("Saindo do Task Manager...");
+        match ans {
+            Ok("1. Adicionar uma nova tarefa") => {
+                if let Err(e) = adicionar_tarefa(&mut repo) {
+                    eprintln!("{}: {}", "Erro".red().bold(), e);
+                }
+            }
+            Ok("2. Listar todas as tarefas") => {
+                if let Err(e) = listar_tarefas(&repo) {
+                    eprintln!("{}: {}", "Erro".red().bold(), e);
+                }
+            }
+            Ok("3. Atualizar o status de uma tarefa") => {
+                if let Err(e) = atualizar_tarefa(&mut repo) {
+                    eprintln!("{}: {}", "Erro".red().bold(), e);
+                }
+            }
+            Ok("4. Remover uma tarefa") => {
+                if let Err(e) = remover_tarefa(&mut repo) {
+                    eprintln!("{}: {}", "Erro".red().bold(), e);
+                }
+            }
+            Ok("5. Sair") => {
+                println!("{}", "Saindo... Até mais!".cyan());
                 break;
             }
-            _ => println!("Opção inválida, tente novamente."),
+            Err(InquireError::OperationCanceled) | Err(InquireError::OperationInterrupted) => {
+                println!("\nSaindo... Até mais!");
+                break;
+            }
+            _ => {
+                println!("{}", "Opção inválida.".red());
+            }
         }
     }
 }
 
-// Função para adicionar uma nova tarefa
-fn adicionar_tarefa(tarefas: &mut Vec<Task>, contador_id: &mut u32) {
-    let mut descricao = String::new();
-    println!("Digite a descrição da tarefa:");
-    
-    io::stdin().read_line(&mut descricao).expect("Erro ao ler entrada");
-    let descricao = descricao.trim().to_string();
-
-    let nova_tarefa = Task::new(*contador_id, descricao);
-    tarefas.push(nova_tarefa);
-
-    println!("Tarefa adicionada com sucesso! ID: {}", *contador_id);
-    *contador_id += 1;
-}
-
-// Função para listar todas as tarefas
-fn listar_tarefas(tarefas: &[Task]) {
-    if tarefas.is_empty() {
-        println!("Nenhuma tarefa cadastrada.");
-        return;
+fn adicionar_tarefa(repo: &mut JsonFileRepository) -> Result<(), InquireError> {
+    let descricao = Text::new("Digite a descrição da tarefa:").prompt()?;
+    let descricao_trimmed = descricao.trim();
+    if descricao_trimmed.is_empty() {
+        println!("{}", "A descrição não pode ser vazia.".red());
+        return Ok(());
     }
 
-    println!("\n--- Lista de Tarefas ---");
-    for tarefa in tarefas {
+    match repo.add(descricao_trimmed.to_string()) {
+        Ok(t) => println!(
+            "{}: ID {} - {}",
+            "Tarefa adicionada com sucesso".green().bold(),
+            t.id,
+            t.descricao
+        ),
+        Err(e) => eprintln!("Erro ao salvar no arquivo: {}", e),
+    }
+
+    Ok(())
+}
+
+fn listar_tarefas(repo: &JsonFileRepository) -> Result<(), InquireError> {
+    let tasks = match repo.list() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Erro ao carregar tarefas: {}", e);
+            return Ok(());
+        }
+    };
+
+    if tasks.is_empty() {
+        println!("{}", "Nenhuma tarefa cadastrada.".yellow());
+        return Ok(());
+    }
+
+    println!("\n{}", "--- Lista de Tarefas ---".cyan().bold());
+    println!(
+        "{:<5} | {:<15} | {:<30} | {:<20}",
+        "ID", "Status", "Descrição", "Criada em"
+    );
+    println!("{}", "-".repeat(78).dimmed());
+
+    for task in tasks {
+        let status_colored = match task.status {
+            Status::Pendente => "Pendente".red().bold(),
+            Status::EmAndamento => "Em Andamento".yellow().bold(),
+            Status::Concluido => "Concluído".green().bold(),
+        };
+
+        let data_formatada = task.criada_em.format("%Y-%m-%d %H:%M:%S").to_string();
+
         println!(
-            "ID: {} | Descrição: {} | Status: {}",
-            tarefa.id, tarefa.descricao, tarefa.status.descricao()
+            "{:<5} | {:<24} | {:<30} | {:<20}",
+            task.id,
+            status_colored,
+            task.descricao,
+            data_formatada.dimmed()
         );
     }
+    println!();
+
+    Ok(())
 }
 
-// Função para atualizar o status de uma tarefa pelo ID
-fn atualizar_tarefa(tarefas: &mut Vec<Task>) {
-    let mut id_str = String::new();
-    println!("Digite o ID da tarefa a ser atualizada:");
-
-    io::stdin().read_line(&mut id_str).expect("Erro ao ler entrada");
-    let id: u32 = match id_str.trim().parse() {
-        Ok(num) => num,
-        Err(_) => {
-            println!("ID inválido.");
-            return;
+fn atualizar_tarefa(repo: &mut JsonFileRepository) -> Result<(), InquireError> {
+    let tasks = match repo.list() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Erro ao carregar tarefas: {}", e);
+            return Ok(());
         }
     };
 
-    for tarefa in tarefas.iter_mut() {
-        if tarefa.id == id {
-            println!("Selecione o novo status:");
-            println!("1 - Pendente");
-            println!("2 - Em Andamento");
-            println!("3 - Concluído");
-
-            let mut status_str = String::new();
-            io::stdin().read_line(&mut status_str).expect("Erro ao ler entrada");
-
-            let novo_status = match status_str.trim() {
-                "1" => Status::Pendente,
-                "2" => Status::EmAndamento,
-                "3" => Status::Concluido,
-                _ => {
-                    println!("Opção inválida.");
-                    return;
-                }
-            };
-
-            tarefa.atualizar_status(novo_status);
-            println!("Status atualizado com sucesso!");
-            return;
-        }
+    if tasks.is_empty() {
+        println!("{}", "Nenhuma tarefa cadastrada para atualizar.".yellow());
+        return Ok(());
     }
 
-    println!("Tarefa não encontrada.");
+    let task_options: Vec<TaskOption> = tasks.into_iter().map(TaskOption).collect();
+    let selected_task =
+        Select::new("Selecione a tarefa para atualizar o status:", task_options).prompt()?;
+
+    let status_options = vec!["Pendente", "Em Andamento", "Concluído"];
+    let selected_status = Select::new("Escolha o novo status:", status_options).prompt()?;
+
+    let novo_status = match selected_status {
+        "Pendente" => Status::Pendente,
+        "Em Andamento" => Status::EmAndamento,
+        "Concluído" => Status::Concluido,
+        _ => unreachable!(),
+    };
+
+    match repo.update_status(selected_task.0.id, novo_status) {
+        Ok(_) => println!("{}", "Status atualizado com sucesso!".green().bold()),
+        Err(e) => eprintln!("Erro ao atualizar status: {}", e),
+    }
+
+    Ok(())
 }
 
-// Função para remover uma tarefa pelo ID
-fn remover_tarefa(tarefas: &mut Vec<Task>) {
-    let mut id_str = String::new();
-    println!("Digite o ID da tarefa a ser removida:");
-
-    io::stdin().read_line(&mut id_str).expect("Erro ao ler entrada");
-    let id: u32 = match id_str.trim().parse() {
-        Ok(num) => num,
-        Err(_) => {
-            println!("ID inválido.");
-            return;
+fn remover_tarefa(repo: &mut JsonFileRepository) -> Result<(), InquireError> {
+    let tasks = match repo.list() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Erro ao carregar tarefas: {}", e);
+            return Ok(());
         }
     };
 
-    if let Some(pos) = tarefas.iter().position(|t| t.id == id) {
-        tarefas.remove(pos);
-        println!("Tarefa removida com sucesso!");
+    if tasks.is_empty() {
+        println!("{}", "Nenhuma tarefa cadastrada para remover.".yellow());
+        return Ok(());
+    }
+
+    let task_options: Vec<TaskOption> = tasks.into_iter().map(TaskOption).collect();
+    let selected_task = Select::new("Selecione a tarefa para remover:", task_options).prompt()?;
+
+    let confirmar = Confirm::new("Tem certeza que deseja remover esta tarefa?")
+        .with_default(false)
+        .prompt()?;
+
+    if confirmar {
+        match repo.remove(selected_task.0.id) {
+            Ok(_) => println!("{}", "Tarefa removida com sucesso!".green().bold()),
+            Err(e) => eprintln!("Erro ao remover tarefa: {}", e),
+        }
     } else {
-        println!("Tarefa não encontrada.");
+        println!("{}", "Remoção cancelada.".yellow());
     }
+
+    Ok(())
 }
